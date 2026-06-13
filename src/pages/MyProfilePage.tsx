@@ -244,6 +244,10 @@ export function MyProfilePage() {
 
   async function handleAvatarFile(file: File) {
     if (!primaryName) return;
+    if (file.type === 'image/gif' && file.size > 3.75 * 1024 * 1024) {
+      setAvatarSaveMsg({ type: 'error', msg: 'GIF too large — max ~3.5 MB. Compress it first and try again.' });
+      return;
+    }
     setBusyAvatar(true); setAvatarSaveMsg(null);
     try {
       await publishAvatar(primaryName, file);
@@ -335,13 +339,18 @@ export function MyProfilePage() {
       <Box sx={{ border: `${tokens.shape.borderWidth} solid ${c.borderLight}`, borderRadius: `${tokens.shape.radius}px`, bgcolor: c.surface, p: 3, mb: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'flex-start', gap: 3 }}>
 
         {/* Avatar */}
-        <Box sx={{ position: 'relative', flexShrink: 0 }}>
-          {busyAvatar && (
-            <Box sx={{ position: 'absolute', inset: 0, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
-              <CircularProgress size={20} sx={{ color: '#fff' }} />
-            </Box>
-          )}
-          <AvatarEditor key={avatarKey} name={noName ? null : primaryName} size={88} onFileSelected={handleAvatarFile} />
+        <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+          <Box sx={{ position: 'relative' }}>
+            {busyAvatar && (
+              <Box sx={{ position: 'absolute', inset: 0, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
+                <CircularProgress size={20} sx={{ color: '#fff' }} />
+              </Box>
+            )}
+            <AvatarEditor key={avatarKey} name={noName ? null : primaryName} size={88} onFileSelected={handleAvatarFile} />
+          </Box>
+          <Typography sx={{ fontSize: '0.6rem', color: c.textSecondary, opacity: 0.45, letterSpacing: '0.02em' }}>
+            GIF ok · max 3.5 MB
+          </Typography>
         </Box>
 
         {/* Info + ghost fields */}

@@ -118,8 +118,8 @@ export async function publishStatus(name: string, status: string): Promise<void>
 }
 
 export async function publishAvatar(name: string, file: File): Promise<void> {
-  const resized = await resizeImage(file, 800, 0.85);
-  await qdnRequest({ action: 'PUBLISH_QDN_RESOURCE', service: 'THUMBNAIL', identifier: 'avatar', name, data64: await fileToBase64(resized) });
+  const toUpload = file.type === 'image/gif' ? file : await resizeImage(file, 800, 0.85);
+  await qdnRequest({ action: 'PUBLISH_QDN_RESOURCE', service: 'THUMBNAIL', identifier: 'avatar', name, data64: await fileToBase64(toUpload) });
 }
 
 export async function fetchFriends(name: string): Promise<string[]> {
