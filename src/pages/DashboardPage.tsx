@@ -11,7 +11,6 @@ import ShareIcon from '@mui/icons-material/Share';
 import BoltIcon from '@mui/icons-material/Bolt';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useAtomValue } from 'jotai';
 import { useColors } from '../theme/ColorTokensContext';
@@ -19,8 +18,8 @@ import { tokens } from '../theme/tokens';
 import { StatCard } from '../components/dashboard/StatCard';
 import { AvatarDisplay } from '../components/profile/AvatarDisplay';
 import { accountAtom } from '../state/atoms';
-import { getAccountData, getBalance, getAccountNames, getNameData, fetchBio, fetchStatus, openInExplorer } from '../api/qortal';
-import { appLink, appLabel } from '../apps';
+import { getAccountData, getBalance, getAccountNames, getNameData, fetchBio, fetchStatus } from '../api/qortal';
+import { appLabel } from '../apps';
 import { fetchGroupsByMember, fetchFirstTxTimestamp, fetchQdnResourceCount, fetchRewardShareCount, fetchRecentActivityCount } from '../api/rest';
 import type { QortalAccount, QortalGroup, QortalName } from '../types';
 
@@ -269,14 +268,6 @@ export function DashboardPage() {
             )}
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-            <Button
-              variant="outlined" size="small"
-              onClick={() => activeTarget.name && openInExplorer(activeTarget.name)}
-              startIcon={<OpenInNewIcon sx={{ fontSize: '0.85rem !important' }} />}
-              sx={{ borderColor: c.accent, color: c.accent, borderRadius: '50px', fontSize: '0.72rem', '&:hover': { bgcolor: c.borderLight }, whiteSpace: 'nowrap' }}
-            >
-              Open in Explorer
-            </Button>
             <IconButton size="small" onClick={clearSearch} sx={{ color: c.textSecondary, '&:hover': { color: c.accent }, minWidth: 36, minHeight: 36 }}>
               <CloseIcon fontSize="small" />
             </IconButton>
@@ -303,30 +294,22 @@ export function DashboardPage() {
         <StatCard label="Minting Level" value={level} loading={acct.loading} accent
           sub={`Level ${level}${isMinting ? ' · Minting' : ''}`}
           icon={<StarsIcon fontSize="inherit" />}
-          onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/address/${activeTarget.address}`) }) : undefined}
-          actionLabel={appLabel('chain')}
         />
 
         <StatCard label="Blocks Minted" value={blocksMinted.toLocaleString()} loading={acct.loading}
           sub={acct.value ? [formatMintingTime(blocksMinted), acct.value.blocksMintedPenalty ? `−${acct.value.blocksMintedPenalty.toLocaleString()} penalty` : null].filter(Boolean).join(' · ') : undefined}
           icon={<HardwareIcon fontSize="inherit" />}
-          onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/address/${activeTarget.address}`) }) : undefined}
-          actionLabel={appLabel('chain')}
         />
 
         <StatCard label="QORT Balance" loading={bal.loading}
           value={bal.value !== null ? bal.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}
           sub="native coin"
           icon={<AccountBalanceWalletIcon fontSize="inherit" />}
-          onAction={() => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('wallet', '/#/qortal') })}
-          actionLabel={appLabel('wallet')}
         />
 
         <StatCard label="Account Age" value={formatAge(firstTx.value)} loading={firstTx.loading}
           sub={firstTx.value ? new Date(firstTx.value).toLocaleDateString() : 'No transactions'}
           icon={<CalendarTodayIcon fontSize="inherit" />}
-          onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/address/${activeTarget.address}`) }) : undefined}
-          actionLabel={appLabel('chain')}
         />
 
         <StatCard label="Groups" loading={groups.loading}
@@ -334,7 +317,7 @@ export function DashboardPage() {
           sub={`${groups.value.length} joined`}
           icon={<GroupsIcon fontSize="inherit" />}
           expand={groups.value.length > 0
-            ? <GroupList groups={groups.value} onItemClick={g => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('groups', `/#/group/${g.groupId}`) })} />
+            ? <GroupList groups={groups.value} />
             : undefined}
         />
 
@@ -343,29 +326,23 @@ export function DashboardPage() {
           sub={`${names.value.length} registered`}
           icon={<BadgeIcon fontSize="inherit" />}
           expand={names.value.length > 0
-            ? <NameList names={names.value} onItemClick={n => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('names', `/#/name/${n.name}`) })} />
+            ? <NameList names={names.value} />
             : undefined}
         />
 
         <StatCard label="QDN Resources" value={qdnDisplay} loading={qdnCount.loading}
           sub="published data"
           icon={<StorageIcon fontSize="inherit" />}
-          onAction={activeTarget?.name ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/name/${activeTarget.name}`) }) : undefined}
-          actionLabel={appLabel('chain')}
         />
 
         <StatCard label="Reward Shares" value={rewardDisplay} loading={rewardShares.loading}
           sub="minting relationships"
           icon={<ShareIcon fontSize="inherit" />}
-          onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/address/${activeTarget.address}`) }) : undefined}
-          actionLabel={appLabel('chain')}
         />
 
         <StatCard label="Recent Activity" value={activityDisplay} loading={activity.loading}
           sub="transactions (30 days)"
           icon={<BoltIcon fontSize="inherit" />}
-          onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/address/${activeTarget.address}`) }) : undefined}
-          actionLabel={appLabel('chain')}
         />
       </Box>
     </Box>

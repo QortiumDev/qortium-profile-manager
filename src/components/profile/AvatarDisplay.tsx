@@ -35,7 +35,7 @@ export function AvatarDisplay({ name, size = 96 }: Props) {
   return (
     <Box
       component="img"
-      src={`/arbitrary/THUMBNAIL/${name}/qortal_avatar`}
+      src={`/arbitrary/THUMBNAIL/${name}/avatar`}
       alt={name}
       onError={() => setErrored(true)}
       sx={{

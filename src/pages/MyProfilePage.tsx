@@ -8,7 +8,6 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import CheckIcon from '@mui/icons-material/Check';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import GroupsIcon from '@mui/icons-material/Groups';
 import BadgeIcon from '@mui/icons-material/Badge';
@@ -19,19 +18,22 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import HardwareIcon from '@mui/icons-material/Hardware';
 import ShareIcon from '@mui/icons-material/Share';
 import BoltIcon from '@mui/icons-material/Bolt';
-import { useAtomValue } from 'jotai';
+import PeopleIcon from '@mui/icons-material/People';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { useNavigate } from 'react-router-dom';
 import { useColors } from '../theme/ColorTokensContext';
 import { tokens } from '../theme/tokens';
 import { AvatarEditor } from '../components/profile/AvatarEditor';
 import { AvatarDisplay } from '../components/profile/AvatarDisplay';
 import { StatCard } from '../components/dashboard/StatCard';
-import { accountAtom } from '../state/atoms';
+import { FriendTile } from '../components/friends/FriendTile';
+import { accountAtom, accountLoadingAtom, accountErrorAtom, accountRetryAtom } from '../state/atoms';
 import {
   getAccountNames, fetchBio, publishBio, fetchStatus, publishStatus,
-  publishAvatar, getAccountData, getBalance, getNameData, openInExplorer,
+  publishAvatar, getAccountData, getBalance, getNameData, fetchFriends,
 } from '../api/qortal';
-import { appLink, appLabel } from '../apps';
 import { fetchGroupsByMember, fetchFirstTxTimestamp, fetchQdnResourceCount, fetchRewardShareCount, fetchRecentActivityCount } from '../api/rest';
+import { useFriends } from '../hooks/useFriends';
 import type { QortalAccount, QortalGroup, QortalName } from '../types';
 
 // LEVEL_LABELS — un-comment to restore named level display
@@ -113,7 +115,11 @@ const ghostSx = (accentColor: string, borderColor: string) => ({
 
 export function MyProfilePage() {
   const c = useColors();
+  const navigate = useNavigate();
   const account = useAtomValue(accountAtom);
+  const accountLoading = useAtomValue(accountLoadingAtom);
+  const accountError = useAtomValue(accountErrorAtom);
+  const setRetry = useSetAtom(accountRetryAtom);
 
   // Own profile state
   const [ownNames, setOwnNames]             = useState<QortalName[]>([]);
@@ -136,6 +142,7 @@ export function MyProfilePage() {
   const [searchTarget, setSearchTarget]     = useState<Target | null>(null);
   const [viewBio, setViewBio]               = useState<string | null>(null);
   const [viewStatus, setViewStatus]         = useState<string | null>(null);
+  const [viewFriends, setViewFriends]       = useState<string[]>([]);
 
   // Per-stat state
   const [acct,         setAcct]         = useState(mk<QortalAccount | null>(null));
@@ -153,6 +160,24 @@ export function MyProfilePage() {
   const activeTarget   = searchTarget ?? (account ? { address: account.address, name: primaryName } : null);
   const isViewingOther = !!searchTarget;
   const profileDirty   = status !== statusOriginal.current || bio !== bioOriginal.current;
+
+  const { friends, loading: friendsLoading, add: addFriend, remove: removeFriend } = useFriends(primaryName);
+  const [friendBusy, setFriendBusy] = useState(false);
+  const [friendError, setFriendError] = useState<string | null>(null);
+  const isFriend = !!searchTarget?.name && friends.includes(searchTarget.name);
+
+  async function handleToggleFriend() {
+    if (!searchTarget?.name || !primaryName || friendBusy) return;
+    setFriendBusy(true); setFriendError(null);
+    try {
+      if (isFriend) await removeFriend(searchTarget.name);
+      else await addFriend(searchTarget.name);
+    } catch (e) {
+      setFriendError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFriendBusy(false);
+    }
+  }
 
   const loadStatsRef = useRef(0);
 
@@ -229,23 +254,29 @@ export function MyProfilePage() {
     } finally { setBusyAvatar(false); }
   }
 
-  async function handleSearch() {
-    const q = searchInput.trim();
-    if (!q) return;
+  async function loadTargetByName(name: string) {
     setSearchLoading(true); setSearchError(null);
-    const nameData = await getNameData(q);
+    setViewBio(null); setViewStatus(null); setViewFriends([]);
+    const nameData = await getNameData(name);
     if (!nameData) {
-      setSearchError(`Name "${q}" not found.`);
+      setSearchError(`Name "${name}" not found.`);
       setSearchLoading(false);
       return;
     }
     const newTarget: Target = { address: nameData.owner, name: nameData.name };
     setSearchTarget(newTarget);
-    setViewBio(null); setViewStatus(null);
+    setSearchInput(nameData.name);
     fetchBio(nameData.name).then(setViewBio);
     fetchStatus(nameData.name).then(setViewStatus);
+    fetchFriends(nameData.name).then(setViewFriends);
     loadStats(newTarget);
     setSearchLoading(false);
+  }
+
+  async function handleSearch() {
+    const q = searchInput.trim();
+    if (!q) return;
+    await loadTargetByName(q);
   }
 
   function clearSearch() {
@@ -254,10 +285,33 @@ export function MyProfilePage() {
     setSearchError(null);
     setViewBio(null);
     setViewStatus(null);
+    setViewFriends([]);
     if (account) loadStats({ address: account.address, name: primaryName });
   }
 
-  if (!account) return null;
+  if (accountLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+        <CircularProgress size={28} sx={{ color: c.accent }} />
+      </Box>
+    );
+  }
+
+  if (accountError || !account) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 8 }}>
+        <Typography sx={{ color: c.textSecondary, fontSize: '0.9rem' }}>
+          Could not connect to your account.
+        </Typography>
+        <Button variant="contained" disableElevation size="small"
+          onClick={() => setRetry(n => n + 1)}
+          sx={{ bgcolor: c.accent, color: c.accentText, borderRadius: '50px', px: 2.5, fontSize: '0.75rem', '&:hover': { bgcolor: c.accentHover } }}
+        >
+          Retry
+        </Button>
+      </Box>
+    );
+  }
 
   if (profileLoading) {
     return (
@@ -297,7 +351,7 @@ export function MyProfilePage() {
           {noName ? (
             <Typography sx={{ fontSize: '1rem', color: c.textSecondary, mb: 0.5 }}>
               No name registered —{' '}
-              <Box component="span" onClick={() => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('names') })} sx={{ color: c.accent, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+              <Box component="span" sx={{ color: c.accent }}>
                 register one
               </Box>
             </Typography>
@@ -308,7 +362,7 @@ export function MyProfilePage() {
           )}
 
           {extraNames > 0 && (
-            <Box onClick={() => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('names') })} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25, mb: 0.25, cursor: 'pointer', color: c.accent, '&:hover': { opacity: 0.75 } }}>
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25, mb: 0.25, color: c.accent }}>
               <Typography sx={{ fontSize: '0.75rem', fontWeight: tokens.typography.weightMedium }}>
                 and {extraNames} other name{extraNames > 1 ? 's' : ''}
               </Typography>
@@ -432,14 +486,30 @@ export function MyProfilePage() {
                   {viewStatus && <Typography sx={{ fontSize: '0.78rem', color: c.textSecondary, fontStyle: 'italic', mt: 0.5 }}>{viewStatus}</Typography>}
                   {viewBio && <BioPreview bio={viewBio} />}
                 </Box>
-                <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-                  <Button variant="outlined" size="small"
-                    onClick={() => activeTarget.name && openInExplorer(activeTarget.name)}
-                    startIcon={<OpenInNewIcon sx={{ fontSize: '0.85rem !important' }} />}
-                    sx={{ borderColor: c.accent, color: c.accent, borderRadius: '50px', fontSize: '0.72rem', '&:hover': { bgcolor: c.borderLight }, whiteSpace: 'nowrap' }}
-                  >
-                    Open in Explorer
-                  </Button>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5, flexShrink: 0 }}>
+                  {primaryName && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={friendBusy}
+                      onClick={handleToggleFriend}
+                      sx={{
+                        fontSize: '0.7rem', borderRadius: '50px', px: 1.5, py: 0.25,
+                        borderColor: isFriend ? c.error : c.accent,
+                        color: isFriend ? c.error : c.accent,
+                        '&:hover': { borderColor: isFriend ? c.error : c.accentHover, bgcolor: 'transparent', opacity: 0.8 },
+                        '&.Mui-disabled': { opacity: 0.4 },
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {friendBusy
+                        ? <CircularProgress size={12} sx={{ color: 'inherit' }} />
+                        : isFriend ? 'Remove Friend' : 'Add Friend'}
+                    </Button>
+                  )}
+                  {friendError && (
+                    <Typography sx={{ fontSize: '0.68rem', color: c.error }}>{friendError}</Typography>
+                  )}
                   <IconButton size="small" onClick={clearSearch} sx={{ color: c.textSecondary, '&:hover': { color: c.accent }, minWidth: 36, minHeight: 36 }}>
                     <CloseIcon fontSize="small" />
                   </IconButton>
@@ -454,67 +524,107 @@ export function MyProfilePage() {
             <StatCard label="Minting Level" value={level} loading={acct.loading} accent
               sub={`Level ${level}${isMinting ? ' · Minting' : ''}`}
               icon={<StarsIcon fontSize="inherit" />}
-              onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/address/${activeTarget.address}`) }) : undefined}
-              actionLabel={appLabel('chain')}
             />
 
             <StatCard label="Blocks Minted" value={blocksMinted.toLocaleString()} loading={acct.loading}
               sub={acct.value ? [formatMintingTime(blocksMinted), acct.value.blocksMintedPenalty ? `−${acct.value.blocksMintedPenalty.toLocaleString()} penalty` : null].filter(Boolean).join(' · ') : undefined}
               icon={<HardwareIcon fontSize="inherit" />}
-              onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/address/${activeTarget.address}`) }) : undefined}
-              actionLabel={appLabel('chain')}
             />
 
             <StatCard label="Account Age" value={formatAge(firstTx.value)} loading={firstTx.loading}
               sub={firstTx.value ? new Date(firstTx.value).toLocaleDateString() : 'No transactions'}
               icon={<CalendarTodayIcon fontSize="inherit" />}
-              onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/address/${activeTarget.address}`) }) : undefined}
-              actionLabel={appLabel('chain')}
             />
 
             <StatCard label="Groups" value={groups.value.length} loading={groups.loading}
               sub={`${groups.value.length} joined`}
               icon={<GroupsIcon fontSize="inherit" />}
-              onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('groups') }) : undefined}
-              actionLabel={appLabel('groups')}
             />
 
             <StatCard label="Names" value={statNames.value.length} loading={statNames.loading}
               sub={`${statNames.value.length} registered`}
               icon={<BadgeIcon fontSize="inherit" />}
-              onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('names') }) : undefined}
-              actionLabel={appLabel('names')}
             />
 
             <StatCard label="QDN Resources" value={qdnDisplay} loading={qdnCount.loading}
               sub="published data"
               icon={<StorageIcon fontSize="inherit" />}
-              onAction={activeTarget?.name ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/name/${activeTarget.name}`) }) : undefined}
-              actionLabel={appLabel('chain')}
             />
 
             <StatCard label="Balance" loading={bal.loading}
               value={bal.value !== null ? bal.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}
               sub="QORT · native coin"
               icon={<AccountBalanceWalletIcon fontSize="inherit" />}
-              onAction={() => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', '/#/payments') })}
-              actionLabel={appLabel('chain')}
             />
 
             <StatCard label="Reward Shares" value={rewardDisplay} loading={rewardShares.loading}
               sub="minting relationships"
               icon={<ShareIcon fontSize="inherit" />}
-              onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/address/${activeTarget.address}`) }) : undefined}
-              actionLabel={appLabel('chain')}
             />
 
             <StatCard label="Recent Activity" value={actDisplay} loading={activity.loading}
               sub="transactions (30 days)"
               icon={<BoltIcon fontSize="inherit" />}
-              onAction={activeTarget ? () => qortalRequest({ action: 'OPEN_NEW_TAB', qortalLink: appLink('chain', `/#/address/${activeTarget.address}`) }) : undefined}
-              actionLabel={appLabel('chain')}
             />
           </Box>
+
+          {/* Viewed person's friends — only shown when viewing another profile */}
+          {isViewingOther && activeTarget?.name && (
+            <Box sx={{ mt: 3 }}>
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: tokens.typography.weightBold, letterSpacing: '0.14em', textTransform: 'uppercase', color: c.textSecondary, mb: 1.5 }}>
+                {activeTarget.name}'s Friends{viewFriends.length > 0 ? ` (${viewFriends.length})` : ''}
+              </Typography>
+              {viewFriends.length === 0 ? (
+                <Typography sx={{ fontSize: '0.82rem', color: c.textSecondary, opacity: 0.6 }}>
+                  No friends listed.
+                </Typography>
+              ) : (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: '1fr 1fr 1fr' }, gap: 1.5 }}>
+                  {viewFriends.map(name => (
+                    <FriendTile key={name} name={name} onClick={() => { void loadTargetByName(name); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+                  ))}
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* Friends strip — only shown on own profile */}
+          {!isViewingOther && (
+            <Box sx={{ mt: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                <Typography sx={{ fontSize: '0.65rem', fontWeight: tokens.typography.weightBold, letterSpacing: '0.14em', textTransform: 'uppercase', color: c.textSecondary }}>
+                  Friends{friends.length > 0 ? ` (${friends.length})` : ''}
+                </Typography>
+                <Button
+                  size="small"
+                  onClick={() => navigate('/friends')}
+                  sx={{ ml: 'auto', fontSize: '0.72rem', color: c.accent, p: 0, minWidth: 0, '&:hover': { bgcolor: 'transparent', opacity: 0.7 }, textTransform: 'none' }}
+                >
+                  Manage
+                </Button>
+              </Box>
+
+              {friendsLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                  <CircularProgress size={20} sx={{ color: c.accent }} />
+                </Box>
+              ) : friends.length === 0 ? (
+                <Box
+                  onClick={() => navigate('/friends')}
+                  sx={{ border: `${tokens.shape.borderWidth} solid ${c.borderLight}`, borderRadius: `${tokens.shape.radius}px`, p: 2.5, display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', '&:hover': { borderColor: c.accent }, transition: 'border-color 0.15s ease' }}
+                >
+                  <PeopleIcon sx={{ fontSize: '1.25rem', color: c.textSecondary, opacity: 0.4 }} />
+                  <Typography sx={{ fontSize: '0.82rem', color: c.textSecondary }}>No friends yet — add some</Typography>
+                </Box>
+              ) : (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: '1fr 1fr 1fr' }, gap: 1.5 }}>
+                  {friends.map(name => (
+                    <FriendTile key={name} name={name} onClick={() => { void loadTargetByName(name); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+                  ))}
+                </Box>
+              )}
+            </Box>
+          )}
         </>
       )}
     </Box>
