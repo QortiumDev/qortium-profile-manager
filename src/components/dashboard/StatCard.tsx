@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { Box, Collapse, Tooltip, Typography, CircularProgress } from '@mui/material';
+import { Box, Collapse, Typography, CircularProgress } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useColors } from '../../theme/ColorTokensContext';
@@ -13,14 +13,17 @@ interface Props {
   accent?: boolean;
   loading?: boolean;
   expand?: ReactNode;
+  href?: string;
   onAction?: () => void;
   actionLabel?: string;
 }
 
-export function StatCard({ label, value, sub, icon, accent, loading, expand, onAction, actionLabel }: Props) {
+export function StatCard({ label, value, sub, icon, accent, loading, expand, href, onAction, actionLabel }: Props) {
   const c = useColors();
   const [open, setOpen] = useState(false);
-  const clickable = (!!expand || !!onAction) && !loading;
+  const [hovered, setHovered] = useState(false);
+  const isLink   = (!!href || !!onAction) && !!actionLabel;
+  const isExpand = !!expand && !isLink && !loading;
 
   const inner = (
     <>
@@ -47,16 +50,29 @@ export function StatCard({ label, value, sub, icon, accent, loading, expand, onA
               )}
             </>
           )}
+
+          {isLink && (
+            <Typography sx={{
+              fontSize: '0.65rem',
+              color: c.accent,
+              mt: 0.75,
+              visibility: hovered ? 'visible' : 'hidden',
+              opacity: hovered ? 1 : 0,
+              transition: 'opacity 0.15s ease',
+            }}>
+              Open in {actionLabel} →
+            </Typography>
+          )}
         </Box>
 
-        {clickable && (
-          onAction
-            ? <OpenInNewIcon sx={{ color: c.textSecondary, fontSize: '0.9rem', flexShrink: 0, mt: 0.25 }} />
+        {(isLink || isExpand) && (
+          isLink
+            ? <OpenInNewIcon sx={{ color: c.accent, fontSize: '0.9rem', flexShrink: 0, mt: 0.25, opacity: hovered ? 1 : 0.2, transition: 'opacity 0.15s ease' }} />
             : <ExpandMoreIcon sx={{ color: c.textSecondary, fontSize: '1.1rem', flexShrink: 0, mt: 0.25, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: '0.15s ease' }} />
         )}
       </Box>
 
-      {expand && (
+      {isExpand && (
         <Collapse in={open}>
           <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${c.borderLight}`, maxHeight: 220, overflowY: 'auto', pr: 0.5 }}>
             {expand}
@@ -66,27 +82,62 @@ export function StatCard({ label, value, sub, icon, accent, loading, expand, onA
     </>
   );
 
-  const boxSx = {
+  const baseStyle: React.CSSProperties = {
     border: `${tokens.shape.borderWidth} solid ${c.borderLight}`,
     borderRadius: `${tokens.shape.radius}px`,
-    bgcolor: c.surface,
-    p: 2.5,
-    cursor: clickable ? 'pointer' : 'default',
-    transition: '0.15s ease',
-    '&:hover': clickable ? { bgcolor: c.borderLight } : {},
+    backgroundColor: hovered && isLink ? c.borderLight : c.surface,
+    padding: '20px',
+    width: '100%',
+    textAlign: 'left',
+    fontFamily: 'inherit',
     boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+    transition: 'background-color 0.15s ease',
+    display: 'block',
+    color: 'inherit',
+    cursor: isLink ? 'pointer' : isExpand ? 'pointer' : 'default',
+    textDecoration: 'none',
+    outline: 'none',
   };
 
-  if (actionLabel && onAction) {
+  if (isLink && href) {
     return (
-      <Tooltip title={`Open in ${actionLabel}?`} placement="top" arrow PopperProps={{ disablePortal: true }}>
-        <Box onClick={onAction} sx={boxSx}>{inner}</Box>
-      </Tooltip>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={baseStyle}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {inner}
+      </a>
+    );
+  }
+
+  if (isLink && onAction) {
+    return (
+      <button
+        type="button"
+        onClick={onAction}
+        style={baseStyle}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  if (isExpand) {
+    return (
+      <Box onClick={() => setOpen(o => !o)} sx={{ ...baseStyle as object, '&:hover': { bgcolor: c.borderLight } }}>
+        {inner}
+      </Box>
     );
   }
 
   return (
-    <Box onClick={clickable ? () => setOpen(o => !o) : undefined} sx={boxSx}>
+    <Box sx={{ ...baseStyle as object }}>
       {inner}
     </Box>
   );

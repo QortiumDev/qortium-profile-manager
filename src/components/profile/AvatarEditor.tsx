@@ -35,7 +35,7 @@ export function AvatarEditor({ name, size = 96, onFileSelected }: Props) {
       {hasAvatar ? (
         <Box
           component="img"
-          src={`/arbitrary/THUMBNAIL/${name}/qortal_avatar`}
+          src={`/arbitrary/THUMBNAIL/${name}/avatar`}
           alt={name}
           onError={() => setErrored(true)}
           sx={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: `${tokens.shape.borderWidth} solid ${c.borderLight}`, display: 'block' }}

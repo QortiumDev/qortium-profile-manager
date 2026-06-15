@@ -7,26 +7,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      // Dev-only mock — stripped in production build (vite-plugin-singlefile inlines only /src/main.tsx)
-      if (typeof qortalRequest === 'undefined') {
-        window.qortalRequest = function(opts) {
-          const action = opts.action;
-          if (action === 'GET_USER_ACCOUNT') return Promise.resolve({ address: 'QabcDEF1234567890abcDEF1234567890abcDEF12', name: 'devuser', publicKey: 'devpubkey' });
-          if (action === 'GET_ACCOUNT_DATA') return Promise.resolve({ address: opts.address, publicKey: '', level: 5, blocksMinted: 12345, blocksMintedAdjustment: 0, blocksMintedPenalty: 0, flags: 1 });
-          if (action === 'GET_BALANCE') return Promise.resolve(420.5);
-          if (action === 'GET_ACCOUNT_NAMES') return Promise.resolve([{ name: 'devuser', owner: opts.address, registrationTimestamp: Date.now() - 86400000 * 180, description: 'Dev account' }]);
-          if (action === 'GET_NAME_DATA') return Promise.resolve({ name: opts.name, owner: 'QabcDEF1234567890abcDEF1234567890abcDEF12' });
-          if (action === 'FETCH_QDN_RESOURCE') return Promise.reject(new Error('not found'));
-          if (action === 'PUBLISH_QDN_RESOURCE') return Promise.resolve({ signature: 'fakesig' });
-          if (action === 'REGISTER_NAME') return Promise.resolve({ signature: 'fakesig' });
-          if (action === 'UPDATE_NAME') return Promise.resolve({ signature: 'fakesig' });
-          if (action === 'OPEN_NEW_TAB') { console.log('[mock] OPEN_NEW_TAB', opts.qortalLink); return Promise.resolve(); }
-          console.warn('[mock qortalRequest] unhandled action:', action, opts);
-          return Promise.resolve(null);
-        };
-      }
-    </script>
-    <script type="module" src="/src/main.tsx"></script>
+<script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
