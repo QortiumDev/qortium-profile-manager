@@ -35,6 +35,7 @@ import {
 import { fetchGroupsByMember, fetchFirstTxTimestamp, fetchQdnResourceCount, fetchRewardShareCount, fetchRecentActivityCount } from '../api/rest';
 import { useFriends } from '../hooks/useFriends';
 import type { QortalAccount, QortalGroup, QortalName } from '../types';
+import { appLink, appLabel, type AppKey } from '../apps';
 
 // LEVEL_LABELS — un-comment to restore named level display
 // const LEVEL_LABELS: Record<number, string> = {
@@ -103,6 +104,14 @@ function formatAge(ts: number | null) {
   if (days < 30) return `${days}d`;
   const mo = Math.floor(days / 30);
   return mo < 24 ? `${mo}mo` : `${Math.floor(mo / 12)}yr ${mo % 12}mo`;
+}
+
+
+async function openApp(app: AppKey, route = '') {
+  const path = route ? `?_route=${encodeURIComponent(route)}` : '';
+  try {
+    await qdnRequest({ action: 'OPEN_NEW_TAB', address: appLink(app, path) });
+  } catch { /* ignore */ }
 }
 
 const ghostSx = (accentColor: string, borderColor: string) => ({
@@ -533,47 +542,65 @@ export function MyProfilePage() {
             <StatCard label="Minting Level" value={level} loading={acct.loading} accent
               sub={`Level ${level}${isMinting ? ' · Minting' : ''}`}
               icon={<StarsIcon fontSize="inherit" />}
+              onAction={() => void openApp('chain', `/address/${activeTarget!.address}`)}
+              actionLabel={appLabel('chain')}
             />
 
             <StatCard label="Blocks Minted" value={blocksMinted.toLocaleString()} loading={acct.loading}
               sub={acct.value ? [formatMintingTime(blocksMinted), acct.value.blocksMintedPenalty ? `−${acct.value.blocksMintedPenalty.toLocaleString()} penalty` : null].filter(Boolean).join(' · ') : undefined}
               icon={<HardwareIcon fontSize="inherit" />}
+              onAction={() => void openApp('chain', `/address/${activeTarget!.address}`)}
+              actionLabel={appLabel('chain')}
             />
 
             <StatCard label="Account Age" value={formatAge(firstTx.value)} loading={firstTx.loading}
               sub={firstTx.value ? new Date(firstTx.value).toLocaleDateString() : 'No transactions'}
               icon={<CalendarTodayIcon fontSize="inherit" />}
+              onAction={() => void openApp('chain', `/address/${activeTarget!.address}`)}
+              actionLabel={appLabel('chain')}
             />
 
             <StatCard label="Groups" value={groups.value.length} loading={groups.loading}
               sub={`${groups.value.length} joined`}
               icon={<GroupsIcon fontSize="inherit" />}
+              onAction={() => void openApp('groups', isViewingOther ? `/address/${activeTarget!.address}` : '')}
+              actionLabel={appLabel('groups')}
             />
 
             <StatCard label="Names" value={statNames.value.length} loading={statNames.loading}
               sub={`${statNames.value.length} registered`}
               icon={<BadgeIcon fontSize="inherit" />}
+              onAction={activeTarget?.name ? () => void openApp('names', `/name/${activeTarget!.name!}`) : undefined}
+              actionLabel={activeTarget?.name ? appLabel('names') : undefined}
             />
 
             <StatCard label="QDN Resources" value={qdnDisplay} loading={qdnCount.loading}
               sub="published data"
               icon={<StorageIcon fontSize="inherit" />}
+              onAction={activeTarget?.name ? () => void openApp('chain', `/name/${activeTarget!.name!}`) : undefined}
+              actionLabel={activeTarget?.name ? appLabel('chain') : undefined}
             />
 
             <StatCard label="Balance" loading={bal.loading}
               value={bal.value !== null ? bal.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}
               sub="QORT · native coin"
               icon={<AccountBalanceWalletIcon fontSize="inherit" />}
+              onAction={!isViewingOther ? () => void openApp('wallet', '/qortal') : undefined}
+              actionLabel={!isViewingOther ? appLabel('wallet') : undefined}
             />
 
             <StatCard label="Reward Shares" value={rewardDisplay} loading={rewardShares.loading}
               sub="minting relationships"
               icon={<ShareIcon fontSize="inherit" />}
+              onAction={() => void openApp('chain', `/address/${activeTarget!.address}`)}
+              actionLabel={appLabel('chain')}
             />
 
             <StatCard label="Recent Activity" value={actDisplay} loading={activity.loading}
               sub="transactions (30 days)"
               icon={<BoltIcon fontSize="inherit" />}
+              onAction={() => void openApp('chain', `/address/${activeTarget!.address}`)}
+              actionLabel={appLabel('chain')}
             />
           </Box>
 

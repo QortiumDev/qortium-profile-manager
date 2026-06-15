@@ -1,6 +1,7 @@
 export const APPS = {
   chain:   { qdn: 'Chain',   label: 'Chain'   },
   groups:  { qdn: 'Groups',  label: 'Groups'  },
+  minting: { qdn: 'Minting', label: 'Minting' },
   names:   { qdn: 'Names',   label: 'Names'   },
   profile: { qdn: 'Profile', label: 'Profile' },
   publish: { qdn: 'Publish', label: 'Publish' },
