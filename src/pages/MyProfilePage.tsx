@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Alert, Box, Button, CircularProgress, Collapse, IconButton,
-  InputAdornment, TextField, Tooltip, Typography,
+  InputAdornment, MenuItem, Select, TextField, Tooltip, Typography,
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import CheckIcon from '@mui/icons-material/Check';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
@@ -132,6 +131,7 @@ export function MyProfilePage() {
 
   // Own profile state
   const [ownNames, setOwnNames]             = useState<QortalName[]>([]);
+  const [selectedName, setSelectedName]     = useState<string | null>(null);
   const [bio, setBio]                       = useState('');
   const [status, setStatus]                 = useState('');
   const [profileLoading, setProfileLoading] = useState(true);
@@ -164,8 +164,7 @@ export function MyProfilePage() {
   const [activity,     setActivity]     = useState(mk<number>(0));
 
   const primaryName    = ownNames[0]?.name ?? null;
-  const extraNames     = ownNames.length > 1 ? ownNames.length - 1 : 0;
-  const noName         = !primaryName;
+  const noName         = ownNames.length === 0;
   const activeTarget   = searchTarget ?? (account ? { address: account.address, name: primaryName } : null);
   const isViewingOther = !!searchTarget;
   const profileDirty   = status !== statusOriginal.current || bio !== bioOriginal.current;
@@ -223,6 +222,7 @@ export function MyProfilePage() {
       primary ? fetchStatus(primary) : null,
     ]);
     setOwnNames(fetchedNames);
+    setSelectedName(primary);
     const b = fetchedBio ?? '';
     const s = fetchedStatus ?? '';
     setBio(b); bioOriginal.current = b;
@@ -232,17 +232,30 @@ export function MyProfilePage() {
     loadStats({ address: account.address, name: primary });
   }, [account, loadStats]);
 
+  async function switchName(name: string) {
+    if (name === selectedName) return;
+    setSelectedName(name);
+    setProfileLoading(true);
+    setAvatarSaveMsg(null);
+    const [b, s] = await Promise.all([fetchBio(name), fetchStatus(name)]);
+    const bio_ = b ?? ''; const status_ = s ?? '';
+    setBio(bio_); bioOriginal.current = bio_;
+    setStatus(status_); statusOriginal.current = status_;
+    setProfileLoading(false);
+    setAvatarKey(k => k + 1);
+  }
+
   useEffect(() => { void loadProfile(); }, [loadProfile]);
 
   async function saveProfile() {
-    if (!primaryName) return;
+    if (!selectedName) return;
     setSavingProfile(true); setProfileSaveErr(null);
     try {
       const ops: Promise<void>[] = [];
       if (status !== statusOriginal.current)
-        ops.push(publishStatus(primaryName, status).then(() => { statusOriginal.current = status; }));
+        ops.push(publishStatus(selectedName, status).then(() => { statusOriginal.current = status; }));
       if (bio !== bioOriginal.current)
-        ops.push(publishBio(primaryName, bio).then(() => { bioOriginal.current = bio; }));
+        ops.push(publishBio(selectedName, bio).then(() => { bioOriginal.current = bio; }));
       await Promise.all(ops);
     } catch (e) {
       setProfileSaveErr(e instanceof Error ? e.message : String(e));
@@ -252,14 +265,14 @@ export function MyProfilePage() {
   }
 
   async function handleAvatarFile(file: File) {
-    if (!primaryName) return;
+    if (!selectedName) return;
     if (file.type === 'image/gif' && file.size > 3.75 * 1024 * 1024) {
       setAvatarSaveMsg({ type: 'error', msg: 'GIF too large — max ~3.5 MB. Compress it first and try again.' });
       return;
     }
     setBusyAvatar(true); setAvatarSaveMsg(null);
     try {
-      await publishAvatar(primaryName, file);
+      await publishAvatar(selectedName, file);
       setAvatarSaveMsg({ type: 'success', msg: 'Avatar updated.' });
       setAvatarKey(k => k + 1);
     } catch (e) {
@@ -355,7 +368,7 @@ export function MyProfilePage() {
                 <CircularProgress size={20} sx={{ color: '#fff' }} />
               </Box>
             )}
-            <AvatarEditor key={avatarKey} name={noName ? null : primaryName} size={88} onFileSelected={handleAvatarFile} />
+            <AvatarEditor key={avatarKey} name={selectedName} size={88} onFileSelected={handleAvatarFile} />
           </Box>
           <Typography sx={{ fontSize: '0.6rem', color: c.textSecondary, opacity: 0.45, letterSpacing: '0.02em' }}>
             GIF ok · max 3.5 MB
@@ -373,19 +386,27 @@ export function MyProfilePage() {
                 register one
               </Box>
             </Typography>
+          ) : ownNames.length > 1 ? (
+            <Select
+              variant="standard"
+              value={selectedName ?? ''}
+              onChange={e => void switchName(e.target.value)}
+              disableUnderline
+              sx={{
+                fontSize: '1.4rem', fontWeight: tokens.typography.weightBold, color: c.textPrimary,
+                lineHeight: 1.2, mb: 0.1,
+                '& .MuiSelect-select': { p: 0, pr: '24px !important' },
+                '& .MuiSelect-icon': { color: c.textSecondary, fontSize: '1.2rem' },
+              }}
+            >
+              {ownNames.map(n => (
+                <MenuItem key={n.name} value={n.name} sx={{ fontSize: '0.9rem' }}>{n.name}</MenuItem>
+              ))}
+            </Select>
           ) : (
             <Typography sx={{ fontSize: '1.4rem', fontWeight: tokens.typography.weightBold, color: c.textPrimary, lineHeight: 1.2, mb: 0.1 }}>
-              {primaryName}
+              {selectedName}
             </Typography>
-          )}
-
-          {extraNames > 0 && (
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25, mb: 0.25, color: c.accent }}>
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: tokens.typography.weightMedium }}>
-                and {extraNames} other name{extraNames > 1 ? 's' : ''}
-              </Typography>
-              <ArrowForwardIcon sx={{ fontSize: '0.85rem' }} />
-            </Box>
           )}
 
           <CopyAddress address={account.address} />
@@ -393,7 +414,7 @@ export function MyProfilePage() {
           {/* Ghost status */}
           <TextField fullWidth size="small"
             placeholder={noName ? 'Register a name to set a status…' : 'Add a status…'}
-            disabled={noName}
+            disabled={!selectedName}
             value={status}
             onChange={e => setStatus(e.target.value)}
             inputProps={{ maxLength: 160 }}
@@ -416,7 +437,7 @@ export function MyProfilePage() {
           {/* Ghost bio */}
           <TextField fullWidth multiline rows={3}
             placeholder={noName ? 'Register a name to add a bio…' : 'Write something about yourself…'}
-            disabled={noName}
+            disabled={!selectedName}
             value={bio}
             onChange={e => setBio(e.target.value)}
             sx={{
@@ -435,7 +456,7 @@ export function MyProfilePage() {
           />
 
           {/* Save row — appears only when dirty */}
-          {profileDirty && !noName && (
+          {profileDirty && !!selectedName && (
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1, mt: 1 }}>
               {profileSaveErr && (
                 <Typography sx={{ fontSize: '0.72rem', color: c.error, flex: 1 }}>{profileSaveErr}</Typography>
@@ -537,7 +558,7 @@ export function MyProfilePage() {
           )}
 
           {/* Stats grid */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 1.5, alignItems: 'flex-start' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 1.5 }}>
 
             <StatCard label="Minting Level" value={level} loading={acct.loading} accent
               sub={`Level ${level}${isMinting ? ' · Minting' : ''}`}

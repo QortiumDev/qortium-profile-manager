@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Alert, Box, Button, CircularProgress, TextField, Typography,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import SearchIcon from '@mui/icons-material/Search';
 import PeopleIcon from '@mui/icons-material/People';
@@ -16,10 +17,55 @@ import { useFriends } from '../hooks/useFriends';
 
 export function FriendsPage() {
   const c = useColors();
+  const navigate = useNavigate();
   const account = useAtomValue(accountAtom);
   const primaryName = account?.name ?? null;
 
-  const { friends, loading: friendsLoading, add, remove } = useFriends(primaryName);
+  const { friends, loading: friendsLoading, add, remove, refresh } = useFriends(primaryName);
+
+  const [pendingFriend, setPendingFriend] = useState<string | null>(
+    () => localStorage.getItem('pm-pending-friend')
+  );
+
+  // Keep a ref so polling callbacks can read the latest friends without deps
+  const friendsRef = useRef<string[]>([]);
+  useEffect(() => { friendsRef.current = friends; }, [friends]);
+
+  // After a reload caused by add-friend, poll until the new friend appears in QDN
+  useEffect(() => {
+    if (!primaryName || friendsLoading) return;
+    const pending = localStorage.getItem('pm-pending-friend');
+    if (!pending) return;
+    if (friendsRef.current.includes(pending)) {
+      localStorage.removeItem('pm-pending-friend');
+      setPendingFriend(null);
+      return;
+    }
+    let intervalId: ReturnType<typeof setInterval>;
+    const timeoutId = setTimeout(() => {
+      clearInterval(intervalId);
+      localStorage.removeItem('pm-pending-friend');
+      setPendingFriend(null);
+    }, 120_000);
+    intervalId = setInterval(async () => {
+      await refresh();
+      if (friendsRef.current.includes(pending)) {
+        clearInterval(intervalId);
+        clearTimeout(timeoutId);
+        localStorage.removeItem('pm-pending-friend');
+        setPendingFriend(null);
+      }
+    }, 5000);
+    return () => { clearInterval(intervalId); clearTimeout(timeoutId); };
+  }, [primaryName, friendsLoading, refresh]);
+
+  async function handleRemovePending() {
+    if (!pendingFriend || !primaryName || removingName) return;
+    localStorage.removeItem('pm-pending-friend');
+    setPendingFriend(null);
+    setRemovingName(pendingFriend);
+    try { await remove(pendingFriend); } finally { setRemovingName(null); }
+  }
 
   const [addInput, setAddInput]         = useState('');
   const [addBusy, setAddBusy]           = useState(false);
@@ -43,9 +89,14 @@ export function FriendsPage() {
     try {
       const nameData = await getNameData(name);
       if (!nameData) { setAddError(`Name "${name}" not found.`); return; }
+      localStorage.setItem('pm-pending-friend', name);
+      localStorage.setItem('pm-return-path', '/friends');
       await add(name);
+      localStorage.removeItem('pm-return-path');
+      localStorage.removeItem('pm-pending-friend');
       setAddSuccess(`${name} added!`);
       setAddInput('');
+      navigate('/friends');
       setTimeout(() => setAddSuccess(null), 3000);
     } catch (e) {
       setAddError(e instanceof Error ? e.message : String(e));
@@ -179,13 +230,22 @@ export function FriendsPage() {
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress size={24} sx={{ color: c.accent }} />
               </Box>
-            ) : friends.length === 0 ? (
+            ) : friends.length === 0 && !pendingFriend ? (
               <Box sx={{ border: `${tokens.shape.borderWidth} solid ${c.borderLight}`, borderRadius: `${tokens.shape.radius}px`, p: 3, textAlign: 'center' }}>
                 <PeopleIcon sx={{ fontSize: '2rem', color: c.textSecondary, opacity: 0.3, mb: 1, display: 'block', mx: 'auto' }} />
                 <Typography sx={{ fontSize: '0.85rem', color: c.textSecondary }}>No friends yet. Add one above.</Typography>
               </Box>
             ) : (
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 1.5 }}>
+                {pendingFriend && !friends.includes(pendingFriend) && (
+                  <FriendTile
+                    key="__pending__"
+                    name={pendingFriend}
+                    onRemove={handleRemovePending}
+                    removing={removingName === pendingFriend}
+                    pending
+                  />
+                )}
                 {friends.map(name => (
                   <FriendTile
                     key={name}

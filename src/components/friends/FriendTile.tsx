@@ -11,9 +11,10 @@ interface FriendTileProps {
   onClick?: () => void;
   onRemove?: () => void;
   removing?: boolean;
+  pending?: boolean;
 }
 
-export function FriendTile({ name, onClick, onRemove, removing }: FriendTileProps) {
+export function FriendTile({ name, onClick, onRemove, removing, pending }: FriendTileProps) {
   const c = useColors();
   const [status, setStatus] = useState<string | null>(null);
 
@@ -26,7 +27,7 @@ export function FriendTile({ name, onClick, onRemove, removing }: FriendTileProp
       onClick={onClick}
       sx={{
         position: 'relative',
-        border: `${tokens.shape.borderWidth} solid ${c.borderLight}`,
+        border: `${tokens.shape.borderWidth} solid ${pending ? c.accent : c.borderLight}`,
         borderRadius: `${tokens.shape.radius}px`,
         bgcolor: c.surface,
         p: 1.5,
@@ -36,7 +37,14 @@ export function FriendTile({ name, onClick, onRemove, removing }: FriendTileProp
         opacity: removing ? 0.5 : 1,
         cursor: onClick ? 'pointer' : 'default',
         transition: 'opacity 0.15s ease, border-color 0.15s ease',
-        ...(onClick && { '&:hover': { borderColor: c.accent } }),
+        ...(pending && {
+          '@keyframes pulse-border': {
+            '0%, 100%': { borderColor: c.accent },
+            '50%': { borderColor: c.borderLight },
+          },
+          animation: 'pulse-border 1.8s ease-in-out infinite',
+        }),
+        ...(!pending && onClick && { '&:hover': { borderColor: c.accent } }),
       }}
     >
       <AvatarDisplay name={name} size={40} />
@@ -62,6 +70,12 @@ export function FriendTile({ name, onClick, onRemove, removing }: FriendTileProp
         }}>
           {status ?? 'no status'}
         </Typography>
+        {pending && (
+          <Typography sx={{ fontSize: '0.65rem', color: c.accent, display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+            <CircularProgress size={8} sx={{ color: c.accent }} />
+            confirming…
+          </Typography>
+        )}
       </Box>
       {onRemove && (
         removing

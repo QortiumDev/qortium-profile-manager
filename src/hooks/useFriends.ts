@@ -11,6 +11,12 @@ export function useFriends(primaryName: string | null) {
     fetchFriends(primaryName).then(f => { setFriends(f); setLoading(false); });
   }, [primaryName]);
 
+  const refresh = useCallback(async () => {
+    if (!primaryName) return;
+    const f = await fetchFriends(primaryName);
+    setFriends(f);
+  }, [primaryName]);
+
   const add = useCallback(async (name: string) => {
     if (!primaryName) throw new Error('No registered name.');
     const next = [...new Set([...friends, name])];
@@ -25,5 +31,5 @@ export function useFriends(primaryName: string | null) {
     await publishFriends(primaryName, next);
   }, [primaryName, friends]);
 
-  return { friends, loading, add, remove };
+  return { friends, loading, add, remove, refresh };
 }
