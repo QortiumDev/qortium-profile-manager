@@ -4,7 +4,7 @@ import NotesIcon from '@mui/icons-material/Notes';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import { useColors } from '../../theme/ColorTokensContext';
 import { tokens } from '../../theme/tokens';
-import { publishBio, publishAvatar } from '../../api/qortal';
+import { publishBio, publishAvatar, ensureAccountUnlocked } from '../../api/qortal';
 import { AvatarDisplay } from './AvatarDisplay';
 
 interface Props {
@@ -29,6 +29,7 @@ export function BioEditor({ name, initialBio, onAvatarPublished }: Props) {
     setBusyBio(true);
     setBioStatus(null);
     try {
+      if (!await ensureAccountUnlocked()) return;
       await publishBio(name, bio);
       setBioStatus({ type: 'success', msg: 'Bio saved.' });
     } catch (e) {
@@ -44,6 +45,7 @@ export function BioEditor({ name, initialBio, onAvatarPublished }: Props) {
     setBusyAvatar(true);
     setAvatarStatus(null);
     try {
+      if (!await ensureAccountUnlocked()) return;
       await publishAvatar(name, file);
       setAvatarStatus({ type: 'success', msg: 'Avatar updated.' });
       onAvatarPublished();

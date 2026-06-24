@@ -133,3 +133,8 @@ export async function fetchFriends(name: string): Promise<string[]> {
 export async function publishFriends(name: string, friends: string[]): Promise<void> {
   await qdnRequest({ action: 'PUBLISH_QDN_RESOURCE', service: 'DOCUMENT', identifier: 'friends', name, data64: btoa(unescape(encodeURIComponent(JSON.stringify(friends)))) });
 }
+
+export async function ensureAccountUnlocked(): Promise<boolean> {
+  const result = await qdnRequest({ action: 'UNLOCK_SELECTED_ACCOUNT' }) as { isUnlocked?: boolean } | null;
+  return result?.isUnlocked === true;
+}

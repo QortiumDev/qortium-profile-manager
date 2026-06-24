@@ -30,6 +30,7 @@ import { accountAtom, accountLoadingAtom, accountErrorAtom, accountRetryAtom } f
 import {
   getAccountNames, fetchBio, publishBio, fetchStatus, publishStatus,
   publishAvatar, getAccountData, getBalance, getNameData, fetchFriends,
+  ensureAccountUnlocked,
 } from '../api/qortal';
 import { fetchGroupsByMember, fetchFirstTxTimestamp, fetchQdnResourceCount, fetchRewardShareCount, fetchRecentActivityCount } from '../api/rest';
 import { useFriends } from '../hooks/useFriends';
@@ -251,6 +252,7 @@ export function MyProfilePage() {
     if (!selectedName) return;
     setSavingProfile(true); setProfileSaveErr(null);
     try {
+      if (!await ensureAccountUnlocked()) return;
       const ops: Promise<void>[] = [];
       if (status !== statusOriginal.current)
         ops.push(publishStatus(selectedName, status).then(() => { statusOriginal.current = status; }));
@@ -272,6 +274,7 @@ export function MyProfilePage() {
     }
     setBusyAvatar(true); setAvatarSaveMsg(null);
     try {
+      if (!await ensureAccountUnlocked()) return;
       await publishAvatar(selectedName, file);
       setAvatarSaveMsg({ type: 'success', msg: 'Avatar updated.' });
       setAvatarKey(k => k + 1);

@@ -4,7 +4,7 @@ import BadgeIcon from '@mui/icons-material/Badge';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useColors } from '../../theme/ColorTokensContext';
 import { tokens } from '../../theme/tokens';
-import { registerName, updateName } from '../../api/qortal';
+import { registerName, updateName, ensureAccountUnlocked } from '../../api/qortal';
 import type { QortalName } from '../../types';
 
 interface Props {
@@ -30,6 +30,7 @@ export function NameManager({ names, onRefresh }: Props) {
     setBusyRegister(true);
     setRegisterStatus(null);
     try {
+      if (!await ensureAccountUnlocked()) return;
       await registerName(trimmed);
       setRegisterStatus({ type: 'success', msg: `"${trimmed}" registered.` });
       setRegisterInput('');
@@ -47,6 +48,7 @@ export function NameManager({ names, onRefresh }: Props) {
     setBusyUpdate(true);
     setUpdateStatus(null);
     try {
+      if (!await ensureAccountUnlocked()) return;
       await updateName(primaryName.name, trimmed);
       setUpdateStatus({ type: 'success', msg: `Name updated to "${trimmed}".` });
       setUpdateInput('');
