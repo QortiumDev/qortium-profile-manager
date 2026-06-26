@@ -26,7 +26,7 @@ import { AvatarEditor } from '../components/profile/AvatarEditor';
 import { AvatarDisplay } from '../components/profile/AvatarDisplay';
 import { StatCard } from '../components/dashboard/StatCard';
 import { FriendTile } from '../components/friends/FriendTile';
-import { accountAtom, accountLoadingAtom, accountErrorAtom, accountRetryAtom } from '../state/atoms';
+import { accountAtom, accountLoadingAtom, accountErrorAtom, accountRetryAtom, uiStyleAtom } from '../state/atoms';
 import {
   getAccountNames, fetchBio, publishBio, fetchStatus, publishStatus,
   publishAvatar, getAccountData, getBalance, getNameData, fetchFriends,
@@ -126,6 +126,10 @@ export function MyProfilePage() {
   const c = useColors();
   const navigate = useNavigate();
   const account = useAtomValue(accountAtom);
+  const uiStyle = useAtomValue(uiStyleAtom);
+  const isClassic = uiStyle === 'classic';
+  const pagePt = 'calc(var(--profile-top-bar-height, 52px) + 24px)';
+  const pageMaxWidth = c.layoutWideMaxWidth;
   const accountLoading = useAtomValue(accountLoadingAtom);
   const accountError = useAtomValue(accountErrorAtom);
   const setRetry = useSetAtom(accountRetryAtom);
@@ -320,7 +324,7 @@ export function MyProfilePage() {
 
   if (accountLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+      <Box sx={{ pt: pagePt, display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
         <CircularProgress size={28} sx={{ color: c.accent }} />
       </Box>
     );
@@ -328,7 +332,7 @@ export function MyProfilePage() {
 
   if (accountError || !account) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 8 }}>
+      <Box sx={{ pt: pagePt, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 8 }}>
         <Typography sx={{ color: c.textSecondary, fontSize: '0.9rem' }}>
           Could not connect to your account.
         </Typography>
@@ -344,7 +348,7 @@ export function MyProfilePage() {
 
   if (profileLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+      <Box sx={{ pt: pagePt, display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
         <CircularProgress size={28} sx={{ color: c.accent }} />
       </Box>
     );
@@ -358,7 +362,7 @@ export function MyProfilePage() {
   const actDisplay    = activity.value >= 50 ? '50+' : String(activity.value);
 
   return (
-    <Box sx={{ pt: `${tokens.spacing.topBarHeight + 24}px`, pb: 4, px: { xs: 2, md: 4 }, maxWidth: 720, mx: 'auto' }}>
+    <Box sx={{ pt: pagePt, pb: 4, px: { xs: isClassic ? 1.5 : 2, md: isClassic ? 3 : 4 }, maxWidth: pageMaxWidth, mx: 'auto' }}>
 
       {/* Profile card */}
       <Box sx={{ border: `${tokens.shape.borderWidth} solid ${c.borderLight}`, borderRadius: `${tokens.shape.radius}px`, bgcolor: c.surface, p: 3, mb: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'flex-start', gap: 3 }}>
@@ -407,7 +411,7 @@ export function MyProfilePage() {
               ))}
             </Select>
           ) : (
-            <Typography sx={{ fontSize: '1.4rem', fontWeight: tokens.typography.weightBold, color: c.textPrimary, lineHeight: 1.2, mb: 0.1 }}>
+            <Typography sx={{ fontSize: '1.4rem', fontWeight: tokens.typography.weightBold, color: c.textPrimary, lineHeight: 1.2, mb: 0.1, wordBreak: 'break-word' }}>
               {selectedName}
             </Typography>
           )}
