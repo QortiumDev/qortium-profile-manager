@@ -10,7 +10,7 @@ import { useAtomValue } from 'jotai';
 import { useColors } from '../theme/ColorTokensContext';
 import { tokens } from '../theme/tokens';
 import { FriendTile } from '../components/friends/FriendTile';
-import { accountAtom } from '../state/atoms';
+import { accountAtom, uiStyleAtom } from '../state/atoms';
 import { getNameData, fetchFriends, searchNames } from '../api/qortal';
 import { AvatarDisplay } from '../components/profile/AvatarDisplay';
 import { useFriends } from '../hooks/useFriends';
@@ -19,6 +19,10 @@ export function FriendsPage() {
   const c = useColors();
   const navigate = useNavigate();
   const account = useAtomValue(accountAtom);
+  const uiStyle = useAtomValue(uiStyleAtom);
+  const isClassic = uiStyle === 'classic';
+  const pagePt = 'calc(var(--profile-top-bar-height, 52px) + 24px)';
+  const pageMaxWidth = c.layoutWideMaxWidth;
   const primaryName = account?.name ?? null;
 
   const { friends, loading: friendsLoading, add, remove, refresh } = useFriends(primaryName);
@@ -151,7 +155,7 @@ export function FriendsPage() {
   };
 
   return (
-    <Box sx={{ pt: `${tokens.spacing.topBarHeight + 24}px`, pb: 4, px: { xs: 2, md: 4 }, maxWidth: 720, mx: 'auto' }}>
+    <Box sx={{ pt: pagePt, pb: 4, px: { xs: isClassic ? 1.5 : 2, md: isClassic ? 3 : 4 }, maxWidth: pageMaxWidth, mx: 'auto' }}>
 
       {/* My Friends */}
       <Box sx={{ mb: 4 }}>
