@@ -190,7 +190,7 @@ export function NameManager({ names, onRefresh }: Props) {
                 disableElevation
                 sx={{
                   bgcolor: c.error, color: '#fff', borderRadius: '50px', px: 2.5,
-                  '&:hover': { bgcolor: '#c0392b' },
+                  '&:hover': { bgcolor: c.error },
                   '&.Mui-disabled': { opacity: 0.4, bgcolor: c.error, color: '#fff' },
                   whiteSpace: 'nowrap', fontSize: '0.75rem',
                   width: { xs: '100%', sm: 'auto' },
