@@ -1,19 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { Box, IconButton, Tooltip } from '@mui/material';
-import LightModeIcon from '@mui/icons-material/LightMode';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import PersonRemoveAlt1Icon from '@mui/icons-material/PersonRemoveAlt1';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useColors } from '../../theme/ColorTokensContext';
 import { tokens } from '../../theme/tokens';
-import { themeAtom, uiStyleAtom } from '../../state/atoms';
-import { EnumTheme } from '../../types';
+import { uiStyleAtom } from '../../state/atoms';
 import { RatingControl } from './RatingControl';
+import { AppIcon, getOwnQdnName } from './AppIdentity';
 
-const APP_QDN_NAME = 'Profile';
+const APP_QDN_NAME = getOwnQdnName('Profile');
 const APP_QDN_IDENTIFIER = 'Profile';
 
 function NavLink({
@@ -59,7 +57,6 @@ function NavLink({
 
 export function TopBar() {
   const c = useColors();
-  const [theme, setTheme] = useAtom(themeAtom);
   const uiStyle = useAtomValue(uiStyleAtom);
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -115,15 +112,6 @@ export function TopBar() {
     void qdnRequest({ action: 'OPEN_NEW_TAB', address: `qdn://APP/Help/Help?new=${APP_QDN_NAME}` });
   }
 
-  function handleToggleTheme() {
-    setTheme(current => {
-      const next = current === EnumTheme.DARK ? EnumTheme.LIGHT : EnumTheme.DARK;
-      document.documentElement.dataset.theme = next;
-      document.documentElement.style.colorScheme = next;
-      return next;
-    });
-  }
-
   const buttonSx = {
     borderRadius: `${isClassic ? tokens.shape.radiusMd : tokens.shape.radius}px`,
     minWidth: 44,
@@ -165,20 +153,30 @@ export function TopBar() {
       <Box
         onClick={() => navigate('/')}
         sx={{
-          fontWeight: tokens.typography.weightBlack,
-          fontSize: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
           color: c.textPrimary,
           cursor: 'pointer',
           '&:hover': { color: c.accent },
           transition: c.transitionControl,
           userSelect: 'none',
           minWidth: 0,
+          mr: 0.5,
+        }}
+      >
+        <AppIcon qdnName={APP_QDN_NAME} />
+        <Box sx={{
+          fontWeight: tokens.typography.weightBlack,
+          fontSize: '1rem',
+          color: 'inherit',
+          maxWidth: { xs: 140, sm: 240 },
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
-        }}
-      >
-        Profile
+        }}>
+          {APP_QDN_NAME}
+        </Box>
       </Box>
 
       <Box sx={{
@@ -221,12 +219,6 @@ export function TopBar() {
         <Tooltip title="Help & Feedback" placement="bottom">
           <IconButton size="small" onClick={handleOpenHelp} sx={buttonSx}>
             <HelpOutlineIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip title={theme === EnumTheme.DARK ? 'Light mode' : 'Dark mode'} placement="bottom">
-          <IconButton onClick={handleToggleTheme} sx={buttonSx}>
-            {theme === EnumTheme.DARK ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
           </IconButton>
         </Tooltip>
       </Box>
