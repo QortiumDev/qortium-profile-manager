@@ -47,10 +47,14 @@ export async function fetchNamesForSale(query: string, limit = 20): Promise<Arra
   } catch { return []; }
 }
 
+// /arbitrary/resources only orders by name (see HSQLDBArbitraryRepository.getArbitraryResources,
+// "ORDER BY name") - it has no concept of recency. /arbitrary/resources/search does order by
+// created_when (with reverse=true for newest-first), but its default mode="LATEST" collapses each
+// service down to a single most-recent row - mode=ALL is required to get the full paginated history.
 export async function fetchResourcesPage(name: string, limit: number, offset: number): Promise<QdnFeedResource[]> {
   try {
     return await get<QdnFeedResource[]>(
-      `/arbitrary/resources?name=${encodeURIComponent(name)}&limit=${limit}&offset=${offset}&includemetadata=true`,
+      `/arbitrary/resources/search?name=${encodeURIComponent(name)}&exactmatchnames=true&mode=ALL&reverse=true&limit=${limit}&offset=${offset}&includemetadata=true`,
     );
   } catch {
     return [];
