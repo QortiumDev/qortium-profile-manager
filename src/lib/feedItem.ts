@@ -38,3 +38,29 @@ export function classifyFeedItem(resource: QdnFeedResource): FeedItem {
   }
   return { kind: 'content', group: contentGroup(resource.service), resource, timestamp };
 }
+
+export const ALL_CONTENT_GROUPS: ContentGroup[] = ['image', 'media', 'post', 'other'];
+
+export interface FeedFilters {
+  showProfileUpdates: boolean;
+  friend: string | null;
+  contentGroups: Set<ContentGroup>;
+}
+
+export function defaultFeedFilters(): FeedFilters {
+  return { showProfileUpdates: true, friend: null, contentGroups: new Set(ALL_CONTENT_GROUPS) };
+}
+
+export function isDefaultFeedFilters(filters: FeedFilters): boolean {
+  return filters.showProfileUpdates === true
+    && filters.friend === null
+    && filters.contentGroups.size === ALL_CONTENT_GROUPS.length;
+}
+
+export function applyFeedFilters(items: FeedItem[], filters: FeedFilters): FeedItem[] {
+  return items.filter(item => {
+    if (filters.friend && item.resource.name !== filters.friend) return false;
+    if (item.kind === 'profile-update') return filters.showProfileUpdates;
+    return filters.contentGroups.has(item.group);
+  });
+}

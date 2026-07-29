@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { classifyFeedItem, contentGroup, resourceTimestamp } from './feedItem';
+import { classifyFeedItem, contentGroup, resourceTimestamp, applyFeedFilters, defaultFeedFilters, isDefaultFeedFilters, ALL_CONTENT_GROUPS } from './feedItem';
+import type { FeedItem } from './feedItem';
 import type { QdnFeedResource } from '../types';
 
 function resource(overrides: Partial<QdnFeedResource>): QdnFeedResource {
@@ -79,5 +80,64 @@ describe('classifyFeedItem', () => {
   it('classifies a PLAYLIST resource as content (other group)', () => {
     const r = resource({ service: 'PLAYLIST', identifier: 'my-mix', created: 300 });
     expect(classifyFeedItem(r)).toEqual({ kind: 'content', group: 'other', resource: r, timestamp: 300 });
+  });
+});
+
+function profileUpdate(name: string, type: 'bio' | 'status' | 'avatar' | 'friends', timestamp: number): FeedItem {
+  return { kind: 'profile-update', type, timestamp, resource: resource({ name, identifier: type, updated: timestamp }) };
+}
+
+function content(name: string, group: 'image' | 'media' | 'post' | 'other', timestamp: number): FeedItem {
+  return { kind: 'content', group, timestamp, resource: resource({ name, identifier: 'x', updated: timestamp }) };
+}
+
+describe('defaultFeedFilters / isDefaultFeedFilters', () => {
+  it('the default filters show everything', () => {
+    const f = defaultFeedFilters();
+    expect(f.showProfileUpdates).toBe(true);
+    expect(f.friend).toBeNull();
+    expect(f.contentGroups.size).toBe(ALL_CONTENT_GROUPS.length);
+  });
+  it('isDefaultFeedFilters is true for the default filters', () => {
+    expect(isDefaultFeedFilters(defaultFeedFilters())).toBe(true);
+  });
+  it('isDefaultFeedFilters is false once any filter is narrowed', () => {
+    expect(isDefaultFeedFilters({ ...defaultFeedFilters(), friend: 'alice' })).toBe(false);
+    expect(isDefaultFeedFilters({ ...defaultFeedFilters(), showProfileUpdates: false })).toBe(false);
+    expect(isDefaultFeedFilters({ ...defaultFeedFilters(), contentGroups: new Set(['image']) })).toBe(false);
+  });
+});
+
+describe('applyFeedFilters', () => {
+  const items = [
+    profileUpdate('alice', 'status', 500),
+    content('alice', 'image', 400),
+    content('bob', 'media', 300),
+  ];
+
+  it('returns everything under default filters', () => {
+    expect(applyFeedFilters(items, defaultFeedFilters())).toEqual(items);
+  });
+
+  it('hides profile-update items when showProfileUpdates is false', () => {
+    const result = applyFeedFilters(items, { ...defaultFeedFilters(), showProfileUpdates: false });
+    expect(result).toEqual([items[1], items[2]]);
+  });
+
+  it('narrows to one friend, keeping both their profile-update and content items', () => {
+    const result = applyFeedFilters(items, { ...defaultFeedFilters(), friend: 'alice' });
+    expect(result).toEqual([items[0], items[1]]);
+  });
+
+  it('narrows by content group, leaving profile-update items untouched by the group filter', () => {
+    const result = applyFeedFilters(items, { ...defaultFeedFilters(), contentGroups: new Set(['media']) });
+    expect(result).toEqual([items[0], items[2]]);
+  });
+
+  it('combines all three filters with AND', () => {
+    const result = applyFeedFilters(items, {
+      showProfileUpdates: false, friend: 'alice', contentGroups: new Set(['image']),
+    });
+    expect(result).toEqual([items[1]]);
   });
 });
