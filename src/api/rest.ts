@@ -1,3 +1,5 @@
+import type { QdnFeedResource } from '../types';
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${path}`);
@@ -43,4 +45,14 @@ export async function fetchNamesForSale(query: string, limit = 20): Promise<Arra
     const qs = query ? `&query=${encodeURIComponent(query)}` : '';
     return get<Array<{ name: string; owner: string; salePrice: number }>>(`/names/forsale?limit=${limit}${qs}`);
   } catch { return []; }
+}
+
+export async function fetchResourcesPage(name: string, limit: number, offset: number): Promise<QdnFeedResource[]> {
+  try {
+    return await get<QdnFeedResource[]>(
+      `/arbitrary/resources?name=${encodeURIComponent(name)}&limit=${limit}&offset=${offset}&includemetadata=true`,
+    );
+  } catch {
+    return [];
+  }
 }
