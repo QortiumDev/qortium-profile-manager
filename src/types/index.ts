@@ -27,6 +27,17 @@ export interface QortalGroup {
   memberCount: number;
 }
 
+export interface QdnFeedResource {
+  service: string;
+  name: string;
+  identifier: string;
+  created?: number;
+  updated?: number;
+  title?: string;
+  description?: string;
+  category?: string;
+}
+
 export interface DashboardStats {
   account: QortalAccount | null;
   names: QortalName[];

@@ -138,3 +138,7 @@ export async function ensureAccountUnlocked(): Promise<boolean> {
   const result = await qdnRequest({ action: 'UNLOCK_SELECTED_ACCOUNT' }) as { isUnlocked?: boolean } | null;
   return result?.isUnlocked === true;
 }
+
+export async function openMediaPlayer(service: string, name: string, identifier: string): Promise<void> {
+  await qdnRequest({ action: 'OPEN_QDN_MEDIA_PLAYER', service, name, identifier });
+}

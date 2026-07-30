@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { Box, IconButton, Tooltip } from '@mui/material';
+import { Box, IconButton, TextField, Tooltip } from '@mui/material';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import PersonRemoveAlt1Icon from '@mui/icons-material/PersonRemoveAlt1';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
@@ -8,6 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useColors } from '../../theme/ColorTokensContext';
 import { tokens } from '../../theme/tokens';
 import { uiStyleAtom } from '../../state/atoms';
+import { searchNames } from '../../api/qortal';
 import { RatingControl } from './RatingControl';
 import { AppIcon, getOwnQdnName } from './AppIdentity';
 
@@ -51,6 +52,70 @@ function NavLink({
       }}
     >
       {label}
+    </Box>
+  );
+}
+
+function TopBarSearch({ isClassic }: { isClassic: boolean }) {
+  const c = useColors();
+  const navigate = useNavigate();
+  const [value, setValue] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  function go(name: string) {
+    setValue('');
+    setSuggestions([]);
+    navigate(`/profile/${encodeURIComponent(name)}`);
+  }
+
+  return (
+    <Box sx={{ position: 'relative', minWidth: 0, width: isClassic ? 140 : 180 }}>
+      <TextField
+        size="small"
+        placeholder="Find someone…"
+        value={value}
+        onChange={e => {
+          const v = e.target.value;
+          setValue(v);
+          if (v.length >= 2) {
+            searchNames(v).then(r => setSuggestions(r.slice(0, 6).map(x => x.name)));
+          } else {
+            setSuggestions([]);
+          }
+        }}
+        onKeyDown={e => { if (e.key === 'Enter' && value.trim()) go(value.trim()); }}
+        onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+        sx={{
+          width: '100%',
+          '& .MuiOutlinedInput-root': {
+            fontSize: '0.78rem', height: 32,
+            '& fieldset': { borderColor: c.borderLight },
+            '&:hover fieldset': { borderColor: c.accent },
+            '&.Mui-focused fieldset': { borderColor: c.accent },
+          },
+        }}
+      />
+      {suggestions.length > 0 && (
+        <Box sx={{
+          position: 'absolute', top: '100%', left: 0, right: 0, mt: 0.5,
+          bgcolor: c.surface, border: `${tokens.shape.borderWidth} solid ${c.borderLight}`,
+          borderRadius: `${tokens.shape.radius}px`, zIndex: 10, overflow: 'hidden',
+        }}>
+          {suggestions.map((name, i) => (
+            <Box
+              key={name}
+              onMouseDown={() => go(name)}
+              sx={{
+                px: 1.5, py: 0.75, cursor: 'pointer', fontSize: '0.8rem', color: c.textPrimary,
+                borderTop: i > 0 ? `1px solid ${c.borderLight}` : 'none',
+                '&:hover': { bgcolor: c.borderLight },
+              }}
+            >
+              {name}
+            </Box>
+          ))}
+        </Box>
+      )}
     </Box>
   );
 }
@@ -193,6 +258,8 @@ export function TopBar() {
       }}>
         <NavLink label="Profile" to="/" active={pathname === '/'} isClassic={isClassic} />
         <NavLink label="Friends" to="/friends" active={pathname === '/friends'} isClassic={isClassic} />
+        <NavLink label="Stats" to="/stats" active={pathname === '/stats'} isClassic={isClassic} />
+        <TopBarSearch isClassic={isClassic} />
       </Box>
 
       <Box sx={{

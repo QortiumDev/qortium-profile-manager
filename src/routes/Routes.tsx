@@ -3,6 +3,8 @@ import { createHashRouter, RouterProvider, Outlet, useNavigate } from 'react-rou
 import { TopBar } from '../components/layout/TopBar';
 import { MyProfilePage } from '../pages/MyProfilePage';
 import { FriendsPage } from '../pages/FriendsPage';
+import { StatsPage } from '../pages/StatsPage';
+import { ProfilePage } from '../pages/ProfilePage';
 import { useIframe } from '../hooks/useIframeListener';
 
 function Layout() {
@@ -32,6 +34,8 @@ const router = createHashRouter([
     children: [
       { index: true, element: <MyProfilePage /> },
       { path: 'friends', element: <FriendsPage /> },
+      { path: 'stats', element: <StatsPage /> },
+      { path: 'profile/:name', element: <ProfilePage /> },
     ],
   },
 ]);

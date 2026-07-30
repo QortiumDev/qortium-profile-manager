@@ -1,3 +1,5 @@
+import type { QdnFeedResource } from '../types';
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${path}`);
@@ -43,4 +45,18 @@ export async function fetchNamesForSale(query: string, limit = 20): Promise<Arra
     const qs = query ? `&query=${encodeURIComponent(query)}` : '';
     return get<Array<{ name: string; owner: string; salePrice: number }>>(`/names/forsale?limit=${limit}${qs}`);
   } catch { return []; }
+}
+
+// /arbitrary/resources only orders by name (see HSQLDBArbitraryRepository.getArbitraryResources,
+// "ORDER BY name") - it has no concept of recency. /arbitrary/resources/search does order by
+// created_when (with reverse=true for newest-first), but its default mode="LATEST" collapses each
+// service down to a single most-recent row - mode=ALL is required to get the full paginated history.
+export async function fetchResourcesPage(name: string, limit: number, offset: number): Promise<QdnFeedResource[]> {
+  try {
+    return await get<QdnFeedResource[]>(
+      `/arbitrary/resources/search?name=${encodeURIComponent(name)}&exactmatchnames=true&mode=ALL&reverse=true&limit=${limit}&offset=${offset}&includemetadata=true`,
+    );
+  } catch {
+    return [];
+  }
 }

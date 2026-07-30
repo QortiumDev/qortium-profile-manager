@@ -4,14 +4,13 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import SearchIcon from '@mui/icons-material/Search';
 import PeopleIcon from '@mui/icons-material/People';
 import { useAtomValue } from 'jotai';
 import { useColors } from '../theme/ColorTokensContext';
 import { tokens } from '../theme/tokens';
 import { FriendTile } from '../components/friends/FriendTile';
 import { accountAtom, uiStyleAtom } from '../state/atoms';
-import { getNameData, fetchFriends, searchNames } from '../api/qortal';
+import { getNameData, searchNames } from '../api/qortal';
 import { AvatarDisplay } from '../components/profile/AvatarDisplay';
 import { useFriends } from '../hooks/useFriends';
 
@@ -78,12 +77,6 @@ export function FriendsPage() {
   const [addSuggestions, setAddSuggestions] = useState<string[]>([]);
   const [removingName, setRemovingName] = useState<string | null>(null);
 
-  const [viewInput, setViewInput]   = useState('');
-  const [viewTarget, setViewTarget] = useState<string | null>(null);
-  const [viewFriends, setViewFriends] = useState<string[]>([]);
-  const [viewLoading, setViewLoading] = useState(false);
-  const [viewError, setViewError]   = useState<string | null>(null);
-
   async function handleAdd() {
     const name = addInput.trim();
     if (!name || !primaryName) return;
@@ -113,20 +106,6 @@ export function FriendsPage() {
     if (removingName) return;
     setRemovingName(name);
     try { await remove(name); } finally { setRemovingName(null); }
-  }
-
-  async function handleViewSearch() {
-    const name = viewInput.trim();
-    if (!name) return;
-    setViewLoading(true); setViewError(null); setViewFriends([]); setViewTarget(null);
-    try {
-      const nameData = await getNameData(name);
-      if (!nameData) { setViewError(`Name "${name}" not found.`); return; }
-      setViewTarget(name);
-      setViewFriends(await fetchFriends(name));
-    } finally {
-      setViewLoading(false);
-    }
   }
 
   function SectionLabel({ text }: { text: string }) {
@@ -254,54 +233,10 @@ export function FriendsPage() {
                   <FriendTile
                     key={name}
                     name={name}
+                    onClick={() => navigate(`/profile/${encodeURIComponent(name)}`)}
                     onRemove={() => handleRemove(name)}
                     removing={removingName === name}
                   />
-                ))}
-              </Box>
-            )}
-          </>
-        )}
-      </Box>
-
-      <Box sx={{ height: '1px', bgcolor: c.borderLight, mb: 4 }} />
-
-      {/* View someone's friends */}
-      <Box>
-        <SectionLabel text="View Someone's Friends" />
-        <Box sx={{ display: 'flex', gap: 1, mb: viewError ? 1 : 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-          <TextField
-            fullWidth size="small"
-            placeholder="Enter a name…"
-            value={viewInput}
-            onChange={e => { setViewInput(e.target.value); setViewError(null); }}
-            onKeyDown={e => e.key === 'Enter' && handleViewSearch()}
-            error={!!viewError}
-            helperText={viewError ?? undefined}
-            sx={inputSx}
-          />
-          <Button
-            variant="contained" disableElevation
-            disabled={viewLoading || !viewInput.trim()}
-            onClick={handleViewSearch}
-            startIcon={viewLoading ? <CircularProgress size={14} sx={{ color: c.accentText }} /> : <SearchIcon />}
-            sx={btnSx}
-          >
-            View
-          </Button>
-        </Box>
-
-        {viewTarget && !viewLoading && (
-          <>
-            <Typography sx={{ fontSize: '0.82rem', color: c.textSecondary, mb: 1.5 }}>
-              {viewFriends.length > 0
-                ? `${viewTarget} has ${viewFriends.length} friend${viewFriends.length !== 1 ? 's' : ''}`
-                : `${viewTarget} hasn't added any friends yet.`}
-            </Typography>
-            {viewFriends.length > 0 && (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 1.5 }}>
-                {viewFriends.map(name => (
-                  <FriendTile key={name} name={name} />
                 ))}
               </Box>
             )}
