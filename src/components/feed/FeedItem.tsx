@@ -5,7 +5,7 @@ import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import { useColors } from '../../theme/ColorTokensContext';
 import { tokens } from '../../theme/tokens';
 import { AvatarDisplay } from '../profile/AvatarDisplay';
-import { fetchBio, fetchStatus, getQdnResourceUrl, openMediaPlayer } from '../../api/qortal';
+import { fetchBio, fetchStatus, openMediaPlayer } from '../../api/qortal';
 import type { FeedItem as FeedItemData } from '../../lib/feedItem';
 
 interface Props {
@@ -85,8 +85,11 @@ function ContentCard({
       if (group === 'media') {
         await openMediaPlayer(resource.service, resource.name, resource.identifier);
       } else {
-        const url = await getQdnResourceUrl(resource.service, resource.name, resource.identifier);
-        await qdnRequest({ action: 'OPEN_NEW_TAB', address: url });
+        // OPEN_NEW_TAB only accepts qdn://, home://, and core:// addresses - build one
+        // directly rather than via GET_QDN_RESOURCE_URL, which returns an http:// render
+        // URL meant for direct fetch/iframe embedding, not tab navigation.
+        const address = `qdn://${resource.service}/${encodeURIComponent(resource.name)}/${encodeURIComponent(resource.identifier)}`;
+        await qdnRequest({ action: 'OPEN_NEW_TAB', address });
       }
     } finally {
       setOpening(false);
