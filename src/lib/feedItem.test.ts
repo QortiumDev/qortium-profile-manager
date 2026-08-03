@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { classifyFeedItem, contentGroup, resourceTimestamp, applyFeedFilters, defaultFeedFilters, isDefaultFeedFilters, ALL_CONTENT_GROUPS } from './feedItem';
-import type { FeedItem } from './feedItem';
+import type { FeedItem, AppActivityKind } from './feedItem';
 import type { QdnFeedResource } from '../types';
 
 function resource(overrides: Partial<QdnFeedResource>): QdnFeedResource {
@@ -81,6 +81,39 @@ describe('classifyFeedItem', () => {
     const r = resource({ service: 'PLAYLIST', identifier: 'my-mix', created: 300 });
     expect(classifyFeedItem(r)).toEqual({ kind: 'content', group: 'other', resource: r, timestamp: 300 });
   });
+
+  it('classifies a JSON/qhelp.feedback.v1.p. resource as help-post app-activity', () => {
+    const r = resource({ service: 'JSON', identifier: 'qhelp.feedback.v1.p.ms9dzpgy3i6h5k4v1g', created: 300 });
+    expect(classifyFeedItem(r)).toEqual({ kind: 'app-activity', activity: 'help-post', resource: r, timestamp: 300 });
+  });
+  it('classifies a JSON/qhelp.feedback.v1.c. resource as help-comment app-activity', () => {
+    const r = resource({ service: 'JSON', identifier: 'qhelp.feedback.v1.c.msdkwdmh1529533724', created: 300 });
+    expect(classifyFeedItem(r)).toEqual({ kind: 'app-activity', activity: 'help-comment', resource: r, timestamp: 300 });
+  });
+  it('classifies a JSON/qboards.v1.th. resource as board-thread app-activity', () => {
+    const r = resource({ service: 'JSON', identifier: 'qboards.v1.th.abc123', created: 300 });
+    expect(classifyFeedItem(r)).toEqual({ kind: 'app-activity', activity: 'board-thread', resource: r, timestamp: 300 });
+  });
+  it('classifies a JSON/qboards.v1.t. resource as board-topic app-activity, not board-thread', () => {
+    const r = resource({ service: 'JSON', identifier: 'qboards.v1.t.abc123', created: 300 });
+    expect(classifyFeedItem(r)).toEqual({ kind: 'app-activity', activity: 'board-topic', resource: r, timestamp: 300 });
+  });
+  it('classifies a JSON/qboards.v1.p. resource as board-post app-activity', () => {
+    const r = resource({ service: 'JSON', identifier: 'qboards.v1.p.abc123', created: 300 });
+    expect(classifyFeedItem(r)).toEqual({ kind: 'app-activity', activity: 'board-post', resource: r, timestamp: 300 });
+  });
+  it('classifies a JSON/qboards.v1.r. resource as board-reaction app-activity', () => {
+    const r = resource({ service: 'JSON', identifier: 'qboards.v1.r.mscsjxaw2z4t31354u0o', created: 300 });
+    expect(classifyFeedItem(r)).toEqual({ kind: 'app-activity', activity: 'board-reaction', resource: r, timestamp: 300 });
+  });
+  it('classifies an unrelated JSON resource as content (other group), not app-activity', () => {
+    const r = resource({ service: 'JSON', identifier: 'walletium-contactcard', created: 300 });
+    expect(classifyFeedItem(r)).toEqual({ kind: 'content', group: 'other', resource: r, timestamp: 300 });
+  });
+  it('does not classify a matching identifier as app-activity when the service is not JSON', () => {
+    const r = resource({ service: 'DOCUMENT', identifier: 'qhelp.feedback.v1.p.ms9dzpgy3i6h5k4v1g', created: 300 });
+    expect(classifyFeedItem(r)).toEqual({ kind: 'content', group: 'post', resource: r, timestamp: 300 });
+  });
 });
 
 function profileUpdate(name: string, type: 'bio' | 'status' | 'avatar' | 'friends', timestamp: number): FeedItem {
@@ -89,6 +122,10 @@ function profileUpdate(name: string, type: 'bio' | 'status' | 'avatar' | 'friend
 
 function content(name: string, group: 'image' | 'media' | 'post' | 'other', timestamp: number): FeedItem {
   return { kind: 'content', group, timestamp, resource: resource({ name, identifier: 'x', updated: timestamp }) };
+}
+
+function appActivity(name: string, activity: AppActivityKind, timestamp: number): FeedItem {
+  return { kind: 'app-activity', activity, timestamp, resource: resource({ name, service: 'JSON', identifier: 'x', updated: timestamp }) };
 }
 
 describe('defaultFeedFilters / isDefaultFeedFilters', () => {
@@ -139,5 +176,26 @@ describe('applyFeedFilters', () => {
       showProfileUpdates: false, friend: 'alice', contentGroups: new Set(['image']),
     });
     expect(result).toEqual([items[1]]);
+  });
+});
+
+describe('applyFeedFilters with app-activity items', () => {
+  const items = [
+    appActivity('alice', 'help-post', 500),
+    content('alice', 'image', 400),
+  ];
+
+  it('shows app-activity items under default filters', () => {
+    expect(applyFeedFilters(items, defaultFeedFilters())).toEqual(items);
+  });
+
+  it('hides app-activity items when the "other" content group is disabled', () => {
+    const result = applyFeedFilters(items, { ...defaultFeedFilters(), contentGroups: new Set(['image']) });
+    expect(result).toEqual([items[1]]);
+  });
+
+  it('is unaffected by the showProfileUpdates toggle', () => {
+    const result = applyFeedFilters(items, { ...defaultFeedFilters(), showProfileUpdates: false });
+    expect(result).toEqual(items);
   });
 });
