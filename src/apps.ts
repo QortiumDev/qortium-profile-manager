@@ -19,3 +19,10 @@ export function appLink(app: AppKey, path = ''): string {
 export function appLabel(app: AppKey): string {
   return APPS[app].label;
 }
+
+export async function openApp(app: AppKey, route = ''): Promise<void> {
+  const path = route ? `?_route=${encodeURIComponent(route)}` : '';
+  try {
+    await qdnRequest({ action: 'OPEN_NEW_TAB', address: appLink(app, path) });
+  } catch { /* ignore */ }
+}
