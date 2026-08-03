@@ -16,7 +16,7 @@ import { accountAtom, accountLoadingAtom, uiStyleAtom } from '../state/atoms';
 import { getAccountNames } from '../api/qortal';
 import { useAccountStats } from '../hooks/useAccountStats';
 import type { QortalName } from '../types';
-import { appLink, appLabel, type AppKey } from '../apps';
+import { appLabel, openApp } from '../apps';
 
 function formatMintingTime(blocks: number) {
   const h = blocks / 60;
@@ -32,13 +32,6 @@ function formatAge(ts: number | null) {
   if (days < 30) return `${days}d`;
   const mo = Math.floor(days / 30);
   return mo < 24 ? `${mo}mo` : `${Math.floor(mo / 12)}yr ${mo % 12}mo`;
-}
-
-async function openApp(app: AppKey, route = '') {
-  const path = route ? `?_route=${encodeURIComponent(route)}` : '';
-  try {
-    await qdnRequest({ action: 'OPEN_NEW_TAB', address: appLink(app, path) });
-  } catch { /* ignore */ }
 }
 
 export function StatsPage() {

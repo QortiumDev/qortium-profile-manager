@@ -5,10 +5,15 @@ import {
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import { useAtomValue, useSetAtom } from 'jotai';
+import { useNavigate } from 'react-router-dom';
 import { useColors } from '../theme/ColorTokensContext';
 import { tokens } from '../theme/tokens';
 import { AvatarEditor } from '../components/profile/AvatarEditor';
+import { NameManager } from '../components/profile/NameManager';
 import { FeedList } from '../components/feed/FeedList';
+import { OnboardingPrompt } from '../components/onboarding/OnboardingPrompt';
+import { OnboardingChecklist } from '../components/onboarding/OnboardingChecklist';
+import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { accountAtom, accountLoadingAtom, accountErrorAtom, accountRetryAtom, uiStyleAtom } from '../state/atoms';
 import {
   getAccountNames, fetchBio, publishBio, fetchStatus, publishStatus,
@@ -77,6 +82,13 @@ export function MyProfilePage() {
 
   const { friends, loading: friendsLoading } = useFriends(primaryName);
 
+  const navigate = useNavigate();
+  const nameManagerRef = useRef<HTMLDivElement>(null);
+  const profileCardRef = useRef<HTMLDivElement>(null);
+  const [onboardingChoice, setOnboardingChoice] = useState<string | null>(() => localStorage.getItem('pm-onboarding-choice'));
+  const [showOnboardingPrompt, setShowOnboardingPrompt] = useState(false);
+  const onboardingStatus = useOnboardingStatus(account?.address ?? null, selectedName);
+
   const loadProfile = useCallback(async () => {
     if (!account) return;
     setProfileLoading(true);
@@ -110,6 +122,32 @@ export function MyProfilePage() {
 
   useEffect(() => { void loadProfile(); }, [loadProfile]);
 
+  useEffect(() => {
+    if (!profileLoading && noName && onboardingChoice === null) {
+      setShowOnboardingPrompt(true);
+    }
+  }, [profileLoading, noName, onboardingChoice]);
+
+  function handleOnboardingAnswer(start: boolean) {
+    const choice = start ? 'yes' : 'no';
+    localStorage.setItem('pm-onboarding-choice', choice);
+    setOnboardingChoice(choice);
+    setShowOnboardingPrompt(false);
+  }
+
+  function handleCloseChecklist() {
+    localStorage.setItem('pm-onboarding-choice', 'no');
+    setOnboardingChoice('no');
+  }
+
+  function scrollToNameManager() {
+    nameManagerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function scrollToProfileCard() {
+    profileCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   async function saveProfile() {
     if (!selectedName) return;
     setSavingProfile(true); setProfileSaveErr(null);
@@ -140,6 +178,7 @@ export function MyProfilePage() {
       await publishAvatar(selectedName, file);
       setAvatarSaveMsg({ type: 'success', msg: 'Avatar updated.' });
       setAvatarKey(k => k + 1);
+      onboardingStatus.refetch();
     } catch (e) {
       setAvatarSaveMsg({ type: 'error', msg: e instanceof Error ? e.message : String(e) });
     } finally { setBusyAvatar(false); }
@@ -178,7 +217,7 @@ export function MyProfilePage() {
   return (
     <Box sx={{ pt: pagePt, pb: 4, px: { xs: isClassic ? 1.5 : 2, md: isClassic ? 3 : 4 }, maxWidth: pageMaxWidth, mx: 'auto' }}>
 
-      <Box sx={{ border: `${tokens.shape.borderWidth} solid ${c.borderLight}`, borderRadius: `${tokens.shape.radius}px`, bgcolor: c.surface, p: 3, mb: 3, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'flex-start', gap: 3 }}>
+      <Box ref={profileCardRef} sx={{ border: `${tokens.shape.borderWidth} solid ${c.borderLight}`, borderRadius: `${tokens.shape.radius}px`, bgcolor: c.surface, p: 3, mb: 3, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'flex-start', gap: 3, scrollMarginTop: 'var(--profile-top-bar-height, 52px)' }}>
 
         <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
           <Box sx={{ position: 'relative' }}>
@@ -197,8 +236,7 @@ export function MyProfilePage() {
         <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
           {noName ? (
             <Typography sx={{ fontSize: '1rem', color: c.textSecondary, mb: 0.5 }}>
-              No name registered —{' '}
-              <Box component="span" sx={{ color: c.accent }}>register one</Box>
+              No name registered yet
             </Typography>
           ) : ownNames.length > 1 ? (
             <Select
@@ -286,6 +324,31 @@ export function MyProfilePage() {
           )}
         </Box>
       </Box>
+
+      {noName && (
+        <Box ref={nameManagerRef} sx={{ mb: 3, scrollMarginTop: 'var(--profile-top-bar-height, 52px)' }}>
+          <NameManager names={ownNames} onRefresh={loadProfile} />
+        </Box>
+      )}
+
+      <OnboardingPrompt open={showOnboardingPrompt} onAnswer={handleOnboardingAnswer} />
+
+      {onboardingChoice === 'yes' && (
+        <OnboardingChecklist
+          hasName={!noName}
+          hasAvatar={onboardingStatus.avatar.value}
+          hasBio={bioOriginal.current.trim().length > 0}
+          hasStatus={statusOriginal.current.trim().length > 0}
+          hasFriends={friends.length > 0}
+          hasJoinedGroup={onboardingStatus.groups.value}
+          hasWalletCard={onboardingStatus.walletCard.value}
+          hasFollowedNode={onboardingStatus.followedNodes.value}
+          onScrollToNameManager={scrollToNameManager}
+          onScrollToProfileCard={scrollToProfileCard}
+          onGoToFriends={() => navigate('/friends')}
+          onClose={handleCloseChecklist}
+        />
+      )}
 
       {friendsLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>

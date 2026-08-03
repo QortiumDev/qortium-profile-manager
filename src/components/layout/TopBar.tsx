@@ -8,7 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useColors } from '../../theme/ColorTokensContext';
 import { tokens } from '../../theme/tokens';
 import { uiStyleAtom } from '../../state/atoms';
-import { searchNames } from '../../api/qortal';
+import { searchNames, getFollowedNames } from '../../api/qortal';
 import { RatingControl } from './RatingControl';
 import { AppIcon, getOwnQdnName } from './AppIdentity';
 
@@ -131,8 +131,8 @@ export function TopBar() {
   const isClassic = uiStyle === 'classic';
 
   useEffect(() => {
-    qdnRequest({ action: 'GET_LIST', listName: 'followedNames' })
-      .then((list) => { setIsFollowed(Array.isArray(list) && (list as string[]).includes(APP_QDN_NAME)); })
+    getFollowedNames()
+      .then((list) => { setIsFollowed(list.includes(APP_QDN_NAME)); })
       .catch(() => {});
   }, []);
 

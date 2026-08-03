@@ -139,6 +139,28 @@ export async function ensureAccountUnlocked(): Promise<boolean> {
   return result?.isUnlocked === true;
 }
 
+export async function fetchJsonResource<T = unknown>(name: string, identifier: string): Promise<T | null> {
+  try {
+    const res = await qdnRequest({ action: 'FETCH_QDN_RESOURCE', service: 'JSON', name, identifier, encoding: 'base64' }) as string;
+    if (!res) return null;
+    return JSON.parse(decodeURIComponent(escape(atob(res)))) as T;
+  } catch { return null; }
+}
+
+export async function hasWalletCard(name: string): Promise<boolean> {
+  try {
+    const res = await qdnRequest({ action: 'FETCH_QDN_RESOURCE', service: 'JSON', name, identifier: 'walletium-contactcard', encoding: 'base64' });
+    return res !== null && res !== undefined;
+  } catch { return false; }
+}
+
+export async function getFollowedNames(): Promise<string[]> {
+  try {
+    const res = await qdnRequest({ action: 'GET_LIST', listName: 'followedNames' });
+    return Array.isArray(res) ? res as string[] : [];
+  } catch { return []; }
+}
+
 export async function openMediaPlayer(service: string, name: string, identifier: string): Promise<void> {
   await qdnRequest({ action: 'OPEN_QDN_MEDIA_PLAYER', service, name, identifier });
 }
