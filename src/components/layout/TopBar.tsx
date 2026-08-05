@@ -163,10 +163,10 @@ export function TopBar() {
     setFollowBusy(true);
     try {
       if (isFollowed) {
-        await qdnRequest({ action: 'REMOVE_FROM_LIST', listName: 'followedNames', items: [APP_QDN_NAME] });
+        await qdnRequest({ action: 'REMOVE_FROM_LIST', listName: 'followedQdn', items: [`*/${APP_QDN_NAME}`] });
         setIsFollowed(false);
       } else {
-        await qdnRequest({ action: 'ADD_TO_LIST', listName: 'followedNames', items: [APP_QDN_NAME] });
+        await qdnRequest({ action: 'ADD_TO_LIST', listName: 'followedQdn', items: [`*/${APP_QDN_NAME}`] });
         setIsFollowed(true);
       }
     } catch {}

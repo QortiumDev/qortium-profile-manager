@@ -154,10 +154,17 @@ export async function hasWalletCard(name: string): Promise<boolean> {
   } catch { return false; }
 }
 
+// Core only reads followedQdn/blockedQdn (gitignore-style SERVICE/NAME/IDENTIFIER
+// patterns), not a plain followedNames list. A followed "person" is a `*/<name>`
+// pattern (any service, any identifier), so extract the name back out of those.
 export async function getFollowedNames(): Promise<string[]> {
   try {
-    const res = await qdnRequest({ action: 'GET_LIST', listName: 'followedNames' });
-    return Array.isArray(res) ? res as string[] : [];
+    const res = await qdnRequest({ action: 'GET_LIST', listName: 'followedQdn' });
+    const patterns = Array.isArray(res) ? res as string[] : [];
+    return patterns
+      .map(p => p.split('/'))
+      .filter(parts => parts.length === 2 && parts[0] === '*' && parts[1] !== '' && parts[1] !== '*')
+      .map(parts => parts[1]);
   } catch { return []; }
 }
 
