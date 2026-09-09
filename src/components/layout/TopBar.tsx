@@ -8,7 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useColors } from '../../theme/ColorTokensContext';
 import { tokens } from '../../theme/tokens';
 import { uiStyleAtom } from '../../state/atoms';
-import { searchNames, getFollowedNames } from '../../api/qortal';
+import { searchNames } from '../../api/qortal';
 import { RatingControl } from './RatingControl';
 import { AppIcon, getOwnQdnName } from './AppIdentity';
 
@@ -131,8 +131,8 @@ export function TopBar() {
   const isClassic = uiStyle === 'classic';
 
   useEffect(() => {
-    getFollowedNames()
-      .then((list) => { setIsFollowed(list.includes(APP_QDN_NAME)); })
+    qdnRequest({ action: 'GET_LIST', listName: 'followedQdn' })
+      .then((list) => { setIsFollowed(Array.isArray(list) && (list as string[]).includes(`*/${APP_QDN_NAME}`)); })
       .catch(() => {});
   }, []);
 
@@ -163,10 +163,10 @@ export function TopBar() {
     setFollowBusy(true);
     try {
       if (isFollowed) {
-        await qdnRequest({ action: 'REMOVE_FROM_LIST', listName: 'followedNames', items: [APP_QDN_NAME] });
+        await qdnRequest({ action: 'REMOVE_FROM_LIST', listName: 'followedQdn', items: [`*/${APP_QDN_NAME}`] });
         setIsFollowed(false);
       } else {
-        await qdnRequest({ action: 'ADD_TO_LIST', listName: 'followedNames', items: [APP_QDN_NAME] });
+        await qdnRequest({ action: 'ADD_TO_LIST', listName: 'followedQdn', items: [`*/${APP_QDN_NAME}`] });
         setIsFollowed(true);
       }
     } catch {}
