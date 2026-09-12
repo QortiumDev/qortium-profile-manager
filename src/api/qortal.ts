@@ -156,7 +156,9 @@ export async function hasWalletCard(name: string): Promise<boolean> {
 
 export async function getFollowedNames(): Promise<string[]> {
   try {
-    const res = await qdnRequest({ action: 'GET_LIST', listName: 'followedNames' });
+    // Core only maintains followedQdn/blockedQdn - 'followedNames' is a dead
+    // list name that was fixed everywhere else on 2026-08-05 but missed here.
+    const res = await qdnRequest({ action: 'GET_LIST', listName: 'followedQdn' });
     return Array.isArray(res) ? res as string[] : [];
   } catch { return []; }
 }
